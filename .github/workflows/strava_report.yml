@@ -1,0 +1,32 @@
+name: Strava Weekly Report
+
+on:
+  schedule:
+    - cron: '0 21 * * 0'  # Every Sunday at 21:00 UTC (9pm UK winter, 10pm BST summer)
+  workflow_dispatch:        # Allows manual trigger from GitHub UI for testing
+
+jobs:
+  send_report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run report
+        env:
+          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          EMAIL_FROM:           ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO:             ${{ secrets.EMAIL_TO }}
+          EMAIL_APP_PWD:        ${{ secrets.EMAIL_APP_PWD }}
+        run: python strava_weekly_report.py
