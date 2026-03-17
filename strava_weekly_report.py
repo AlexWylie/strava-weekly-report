@@ -126,27 +126,23 @@ CARDIO_TYPES = {
 RUN_TYPES = {"Run", "VirtualRun", "TrailRun"}
 
 
-def fetch_zone45_mins(token, activity_id):
-    """Fetch actual time in heart rate zones 4 and 5 for a single activity."""
+def fetch_hr_zones(token, activity_id):
+    """Fetch time in each HR zone (Z1-Z5) for a single activity. Returns list of 5 values in minutes."""
     try:
         r = requests.get(
             f"https://www.strava.com/api/v3/activities/{activity_id}/zones",
             headers={"Authorization": f"Bearer {token}"}
         )
         if r.status_code != 200:
-            return 0
+            return [0, 0, 0, 0, 0]
         data = r.json()
-        # Find heart rate zone bucket
         for zone_block in data:
             if zone_block.get("type") == "heartrate":
                 buckets = zone_block.get("distribution_buckets", [])
-                # Buckets are 0-indexed: 0=Z1, 1=Z2, 2=Z3, 3=Z4, 4=Z5
-                z4 = buckets[3]["time"] if len(buckets) > 3 else 0
-                z5 = buckets[4]["time"] if len(buckets) > 4 else 0
-                return round((z4 + z5) / 60)
+                return [round(buckets[i]["time"] / 60) if i < len(buckets) else 0 for i in range(5)]
     except Exception:
         pass
-    return 0
+    return [0, 0, 0, 0, 0]
 
 
 def is_evie_run(activity):
@@ -158,7 +154,7 @@ def is_evie_run(activity):
 def analyse_activities(activities, token):
     total_cardio_mins = 0
     total_run_mins    = 0
-    zone45_mins       = 0
+    hr_zones          = [0, 0, 0, 0, 0]  # Z1-Z5 totals across all activities
     by_type           = {}
     daily             = {i: [] for i in range(7)}  # 0=Mon ... 6=Sun
 
@@ -206,11 +202,12 @@ def analyse_activities(activities, token):
                 else:
                     lr_solo_mins = max(lr_solo_mins or 0, mins)
 
-        # Fetch actual Zone 4-5 time from Strava zones endpoint (runs only)
-        if atype in RUN_TYPES:
-            activity_id = a.get("id")
-            if activity_id:
-                zone45_mins += fetch_zone45_mins(token, activity_id)
+        # Fetch HR zone breakdown from Strava for all cardio activities
+        activity_id = a.get("id")
+        if activity_id:
+            zones = fetch_hr_zones(token, activity_id)
+            for i in range(5):
+                hr_zones[i] += zones[i]
 
     # Compute combined totals
     if thu_evie_mins is not None or thu_solo_mins is not None:
@@ -221,7 +218,8 @@ def analyse_activities(activities, token):
     return {
         "total_cardio_mins": total_cardio_mins,
         "total_run_mins":    total_run_mins,
-        "zone45_mins":       zone45_mins,
+        "hr_zones":          hr_zones,
+        "zone45_mins":       hr_zones[3] + hr_zones[4],
         "by_type":           by_type,
         "daily":             daily,
         "tue_evie_mins":  tue_evie_mins,
@@ -535,13 +533,30 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
         </tr>
       </table>
 
+      <!-- HR zone breakdown -->
+      <div style="margin-top:16px;">
+        <p style="margin:0 0 8px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Heart rate zones</p>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            {"".join([
+              f'<td style="padding:0 4px 0 0;width:20%;">' +
+              f'<div style="background:#f7f7f7;border-radius:6px;padding:8px 10px;">' +
+              f'<p style="margin:0;font-size:11px;color:#999;">Zone {i+1}</p>' +
+              f'<p style="margin:2px 0 0;font-size:15px;font-weight:500;color:#1a1a1a;">{fmt(stats["hr_zones"][i])}</p>' +
+              f'</div></td>'
+              for i in range(5)
+            ])}
+          </tr>
+        </table>
+      </div>
+
       <div style="margin-top:12px;display:inline-block;background:{badge_color}18;
                   color:{badge_color};font-size:13px;font-weight:500;
                   padding:5px 12px;border-radius:6px;">
         {badge_text}
       </div>
       <p style="margin:8px 0 0;font-size:13px;color:#999;">
-        80% target threshold was {fmt(threshold_high)} · 3h floor is {fmt(180)}
+        80% threshold: {fmt(threshold_high)} · miss up to {fmt(compute_target_volume(old_targets) - threshold_high)} mins and still progress · 3h floor
       </p>
     </div>
 
