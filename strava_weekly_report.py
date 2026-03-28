@@ -35,10 +35,9 @@ SCHEDULE = {
     "tue_evie":      {"label": "Tuesday Zone 2 (Evie)",    "floor": 30,  "ceiling": 30,  "fixed": True},
     "tue_interval":  {"label": "Tuesday intervals",         "floor": 30,  "ceiling": 60,  "fixed": False, "current": 60},
     "wed_gym":       {"label": "Wednesday gym commute",     "floor": 35,  "ceiling": 35,  "fixed": True},
-    "thu_combined":  {"label": "Thursday run (total)",      "floor": 60,  "ceiling": 90,  "fixed": False, "current": 90,
-                      "note": "Evie portion 30–60 mins; top up immediately after drop-off"},
+    "thu_combined":  {"label": "Thursday run (total)",      "floor": 30,  "ceiling": 60,  "fixed": False, "current": 50},
     "fri_gym":       {"label": "Friday gym commute",        "floor": 35,  "ceiling": 35,  "fixed": True},
-    "long_run":      {"label": "Long Zone 2 (Sat or Sun)",  "floor": 63,  "ceiling": None, "fixed": False, "current": 63,
+    "long_run":      {"label": "Long Zone 2 (Sat or Sun)",  "floor": 63,  "ceiling": None, "fixed": False, "current": 103,
                       "note": "Evie portion 30–60 mins; top up after drop-off"},
 }
 
@@ -456,7 +455,7 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
     thu_topup  = new_targets["thu_combined"] - new_evie["evie_thu"]
     lr_topup   = new_targets["long_run"]     - new_evie["evie_weekend"]
 
-    thu_note  = f"Evie {fmt(new_evie['evie_thu'])} + {fmt(thu_topup)} top-up"
+    thu_note  = f"Evie {fmt(new_evie['evie_thu'])}"
     lr_note   = f"Evie {fmt(new_evie['evie_weekend'])} + {fmt(lr_topup)} top-up · ceiling {fmt(lr_ceiling)}"
 
     thu_changed = changed("thu_combined") or (new_evie["evie_thu"] != old_evie["evie_thu"])
