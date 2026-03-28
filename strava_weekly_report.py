@@ -248,8 +248,8 @@ def compute_target_volume(targets):
 
 
 def long_run_ceiling(total_target):
-    """Long run ceiling = 33% of total weekly volume, hard cap 180 mins (3h00)."""
-    return min(round(total_target * 0.33), 180)
+    """Long run ceiling = 180 mins (3h00)."""
+    return 180
 
 
 def adjust_targets(targets, actual_cardio_mins):
