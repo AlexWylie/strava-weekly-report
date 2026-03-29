@@ -3,10 +3,10 @@
   "tue_evie": 30,
   "tue_interval": 60,
   "wed_gym": 35,
-  "thu_combined": 50,
+  "thu_combined": 55,
   "fri_gym": 35,
-  "long_run": 103,
+  "long_run": 113,
   "evie_tue": 30,
-  "evie_thu": 50,
-  "evie_weekend": 50
+  "evie_thu": 55,
+  "evie_weekend": 55
 }
