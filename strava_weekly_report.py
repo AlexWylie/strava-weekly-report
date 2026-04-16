@@ -120,6 +120,7 @@ CARDIO_TYPES = {
     "Swim", "Elliptical", "StairStepper", "Rowing",
     "Soccer",                                         # Football in Strava
     "AlpineSki", "NordicSki", "BackcountrySki",       # Skiing
+    "Padel",                                          # Added to Strava Feb 2026; manually correct in Strava if Garmin syncs it as Workout
 }
 
 RUN_TYPES = {"Run", "VirtualRun", "TrailRun"}
