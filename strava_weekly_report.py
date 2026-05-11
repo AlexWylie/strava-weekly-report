@@ -198,7 +198,7 @@ def analyse_activities(activities, token):
                     thu_solo_mins = max(thu_solo_mins or 0, mins)
             elif day in (5, 6):  # Saturday or Sunday
                 if evie:
-                    lr_evie_mins = mins
+                    lr_evie_mins = (lr_evie_mins or 0) + mins  # accumulate across Sat + Sun
                 else:
                     lr_solo_mins = max(lr_solo_mins or 0, mins)
 
