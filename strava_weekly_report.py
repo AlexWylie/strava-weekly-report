@@ -168,7 +168,7 @@ def analyse_activities(activities, token):
     tue_evie_mins  = None
 
     for a in activities:
-        atype = a.get("type", "")
+        atype = a.get("sport_type") or a.get("type", "")  # sport_type is newer and covers types like Padel
         if atype not in CARDIO_TYPES:
             continue
 
