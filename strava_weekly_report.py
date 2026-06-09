@@ -86,12 +86,18 @@ def get_access_token():
 
 
 def fetch_last_week_activities(token):
-    """Fetch all activities from last Monday 00:00 to Sunday 23:59 UTC."""
+    """Fetch all activities from the most recently completed Mon 00:00 – Sun 23:59 UTC week.
+
+    Anchored to the most recent Sunday on or before today, so the report covers the
+    same full week no matter which day it runs. If the scheduled Sunday run fails, a
+    manual re-run any day Mon–Sat still picks up that completed week (not the current,
+    in-progress one).
+    """
     today = datetime.now(timezone.utc).date()
-    # Last Monday
-    days_since_monday = (today.weekday() + 7) % 7 or 7
-    last_monday = today - timedelta(days=days_since_monday)
-    last_sunday = last_monday + timedelta(days=6)
+    # Most recent Sunday on or before today (today itself if today is Sunday)
+    days_since_sunday = (today.weekday() + 1) % 7
+    last_sunday = today - timedelta(days=days_since_sunday)
+    last_monday = last_sunday - timedelta(days=6)
 
     after  = int(datetime(last_monday.year, last_monday.month, last_monday.day, tzinfo=timezone.utc).timestamp())
     before = int(datetime(last_sunday.year, last_sunday.month, last_sunday.day, 23, 59, 59, tzinfo=timezone.utc).timestamp())
