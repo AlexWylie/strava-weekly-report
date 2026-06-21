@@ -1,12 +1,12 @@
 {
   "mon_gym": 35,
   "tue_evie": 30,
-  "tue_interval": 53,
+  "tue_interval": 48,
   "wed_gym": 35,
-  "thu_combined": 53,
+  "thu_combined": 48,
   "fri_gym": 35,
-  "long_run": 110,
+  "long_run": 99,
   "evie_tue": 30,
-  "evie_thu": 32,
-  "evie_weekend": 32
+  "evie_thu": 30,
+  "evie_weekend": 30
 }
