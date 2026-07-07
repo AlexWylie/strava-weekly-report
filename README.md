@@ -4,24 +4,25 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 
 ## What it does
 
-- Pulls all cardio activities from the past week via the Strava API
+- Pulls all cardio activities from the last completed Mon–Sun week via the Strava API
 - Summarises total volume, activity breakdown, and actual Zone 4-5 time (from your HR monitor data)
-- Compares actual volume against your targets and adjusts next week's targets accordingly
-- Tracks Evie's running targets separately and adjusts those too
-- Suggests three interval session options for Tuesday based on HR zones
+- Compares actual volume against your targets and increases next week's targets if you hit the threshold — targets never decrease
+- Prescribes a Norwegian 4×4 interval session for Tuesday, sized to the interval target
 - Sends a formatted HTML email from Gmail to your Hotmail inbox every Sunday at 9pm
 
 ## Schedule
 
-| Day | Session | Target | Notes |
-|-----|---------|--------|-------|
-| Monday | Gym commute | 35 min | Fixed |
-| Tuesday | Zone 2 with Evie | 30 min | Fixed |
-| Tuesday | Intervals | 30–60 min | Adjustable |
-| Wednesday | Gym commute | 35 min | Fixed |
-| Thursday | Combined run | 60–90 min | Evie portion + solo top-up |
-| Friday | Gym commute | 35 min | Fixed |
-| Sat/Sun | Long Zone 2 | 63 min+ | Evie portion + solo top-up |
+| Day | Session | Target | Ceiling | Notes |
+|-----|---------|--------|---------|-------|
+| Monday | Gym commute | 35 min | — | Fixed |
+| Tuesday | Zone 2 with Evie | 30 min | — | Fixed |
+| Tuesday | Intervals | adjustable | 60 min | Norwegian 4×4 |
+| Wednesday | Gym commute | 35 min | — | Fixed |
+| Thursday | Run with Evie | adjustable | 60 min | Run together, one activity |
+| Friday | Gym commute | 35 min | — | Fixed |
+| Sat/Sun | Long Zone 2 (solo) | adjustable | 180 min | Marathon long-run cap |
+
+Current targets live in `strava_state.json`.
 
 ## Target adjustment rules
 
@@ -29,45 +30,40 @@ Applied each Sunday based on last week's actual cardio volume:
 
 | Last week's cardio | Outcome |
 |--------------------|---------|
-| ≥ 80% of target volume | +10% on adjustable sessions |
-| < 3 hours (180 min) | −10% on adjustable sessions |
-| Between those thresholds | No change |
+| ≥ 80% of target volume | +10% on adjustable sessions (clamped to ceilings) |
+| Below that | No change |
 
-Single-session change is capped at 10% regardless. Fixed sessions never change.
-
-## Evie's adjustment rules
-
-| Last week's Evie volume | Outcome |
-|------------------------|---------|
-| ≥ 80% of her target | +10% on Thursday and weekend sessions |
-| < 50% of her target | −10% on Thursday and weekend sessions |
-| Between those thresholds | No change |
-
-Evie's Tuesday run is fixed at 30 min. Thursday and weekend sessions have a floor of 30 min and ceiling of 60 min.
+Targets are increase-only — they never decrease automatically. After injury or a
+break, lower them manually by editing `strava_state.json`.
 
 ## Cardio activity types counted
 
-Runs, cycling (all variants), swimming, football (logged as Soccer in Strava), skiing (Alpine, Nordic, Backcountry), elliptical, rowing, stair stepper. Walking and hiking excluded.
+Runs, cycling (all variants), swimming, football (logged as Soccer in Strava), skiing (Alpine, Nordic, Backcountry), elliptical, rowing, stair stepper, padel. Walking and hiking excluded.
+
+Activity type is read from Strava's `sport_type` field (falling back to the legacy `type` field), so newer sports like Padel are recognised correctly.
 
 ## Evie run detection
 
-Any run with 🐶 in the Strava activity name is identified as an Evie run. Thursday and weekend long runs should be recorded as two separate Strava activities — one with Evie (🐶 in the name), one solo top-up — so the script can validate each portion correctly.
+Any run with 🐶 in the Strava activity name is tagged "Evie" in the email's daily log. This is cosmetic only — no targets depend on it.
 
 ## Zone 4-5 tracking
 
-Zone 4-5 time is pulled directly from Strava's `/activities/{id}/zones` endpoint using your HR monitor data. Requires a HR monitor on every run. The interval session recommendation targets ~20% of weekly volume in Zone 4-5.
+Zone 4-5 time is pulled directly from Strava's `/activities/{id}/zones` endpoint using your HR monitor data. Requires a HR monitor on every run. The weekly Z4-5 target is ~20% of total volume.
 
-## Interval session recommendations
+## Tuesday interval session — Norwegian 4×4
 
-Three options are suggested each week based on the Tuesday interval target duration, using heart rate zones:
-- **Zone 4 (80–90% max HR)** — lactate threshold / tempo focus
-- **Zone 5 (90–100% max HR)** — VO2max / neuromuscular focus
+The email prescribes one session: **4 × 4 min in Zone 4-5 (~90% max HR) with 3 min easy jog recoveries** — a fixed 25-minute core block. The remainder of the session target is allocated to a warm-up (capped at 15 min), with whatever is left as warm-down.
 
-Sessions always include warm-up and cool-down within the total session time.
+## Reporting window
 
-## Long run ceiling
+The report always covers the most recently completed Mon–Sun week, anchored to the last Sunday on or before the run date. If the scheduled Sunday run fails, re-running the workflow any day Mon–Sat still reports the correct (completed) week.
 
-Dynamically calculated as 33% of total weekly volume, hard capped at 3h 30m. Grows automatically as weekly volume increases toward marathon-ready fitness (~600–650 min/week).
+## Manual runs and report-only mode
+
+The workflow can be triggered manually from the Actions tab. Two modes:
+
+- **Default** — full run: fetch, adjust targets, email, save state. Use this to recover a failed Sunday run.
+- **Report only** (checkbox on the manual trigger) — emails the report with current targets, without adjusting or saving anything. Use this to resend a week that was already processed; a default re-run of a processed week would apply the +10% twice.
 
 ## Setup
 
@@ -76,6 +72,8 @@ Dynamically calculated as 33% of total weekly volume, hard capped at 3h 30m. Gro
 1. Go to [strava.com/settings/api](https://www.strava.com/settings/api) and create an app
 2. Run `strava_auth_setup.py` locally to get a refresh token with `activity:read_all` scope
 3. Note your Client ID, Client Secret, and Refresh Token
+
+⚠️ Each run of `strava_auth_setup.py` invalidates the previous refresh token. Run it once, verify with `verify_strava.py` (should print HTTP 200), then update the GitHub secret — and don't run the auth script again.
 
 ### 2. Gmail app password
 
@@ -99,11 +97,16 @@ Add these six secrets under **Settings → Secrets and variables → Actions**:
 
 ### 4. Workflow file
 
-Place `strava_report.yml` in `.github/workflows/` in the repository root. The workflow runs automatically every Sunday at 21:00 UTC.
+`.github/workflows/strava_report.yml` runs the report automatically every Sunday at 21:00 UTC and commits the updated state back to the repo.
 
 ## State file
 
-`strava_state.json` is created automatically on first run and stores current targets for both Alex and Evie week to week. It lives in the repository root and is committed back to the repo after each run if you add a commit step — otherwise it resets each week. To persist state across runs, the file needs to be stored externally (e.g. as a GitHub Actions artifact or committed back to the repo).
+`strava_state.json` stores current targets week to week. It lives in the repository root and is committed back by the workflow after each scheduled run (report-only runs don't touch it).
+
+## Troubleshooting
+
+- **403 from `strava.com/oauth/token`** — the refresh token is dead (often caused by re-running the auth setup). Re-authorise once and update the secret; verify locally with `verify_strava.py` first.
+- **Workflow failed on Sunday** — re-run it manually (default mode) any day before the next Sunday; it will still process the correct week.
 
 ## BST note
 
@@ -115,6 +118,7 @@ The workflow runs at `21:00 UTC`. In winter (GMT) this is 9pm. When British Summ
 |------|---------|
 | `strava_weekly_report.py` | Main script |
 | `strava_auth_setup.py` | One-time local setup to get Strava refresh token |
+| `verify_strava.py` | Local diagnostic — checks Strava credentials work before updating secrets |
 | `.github/workflows/strava_report.yml` | GitHub Actions workflow |
-| `strava_state.json` | Auto-created — stores current targets week to week |
+| `strava_state.json` | Stores current targets week to week |
 | `README.md` | This file |

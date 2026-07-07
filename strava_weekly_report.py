@@ -244,37 +244,27 @@ def adjust_targets(targets, actual_cardio_mins):
 
 
 # ─────────────────────────────────────────────
-# INTERVAL RECOMMENDATIONS
+# INTERVAL RECOMMENDATION — Norwegian 4×4
 # ─────────────────────────────────────────────
 def interval_recommendation(interval_target_mins, total_target_mins, actual_zone45_mins):
-    """Suggest an interval session structure targeting ~20% of weekly volume in Z4-5."""
+    """Prescribe a Norwegian 4×4 sized to the Tuesday interval target.
+
+    Core block is fixed at 25 min (4 × 4 min hard + 3 × 3 min recovery jogs).
+    Remaining session time goes to warm-up (capped at 15 min), then warm-down.
+    """
+    core_mins = 4 * 4 + 3 * 3  # 25 min
+    remaining = max(interval_target_mins - core_mins, 0)
+    warmup    = min(15, remaining)
+    warmdown  = remaining - warmup
+
+    session = (
+        f"{warmup} min easy warm-up → "
+        f"4 × 4 min in Zone 4-5 (~90% max HR) with 3 min easy jog recoveries → "
+        f"{warmdown} min warm-down"
+    )
+
     z45_target = round(total_target_mins * 0.20)
-    work_mins  = round(interval_target_mins * 0.55)  # ~55% of session as hard work
 
-    # HR zone descriptions (Garmin/standard 5-zone model)
-    # Zone 4: 80-90% max HR — lactate threshold
-    # Zone 5: 90-100% max HR — VO2max / neuromuscular
-
-    if interval_target_mins >= 55:
-        sessions = [
-            f"5 × 6 min in Zone 4 (80–90% max HR), 90s easy jog recovery — {work_mins} min total hard work",
-            f"4 × 8 min in Zone 4 (80–90% max HR), 2 min easy jog recovery — threshold focus",
-            f"3 × 10 min in Zone 4 (80–90% max HR), 2 min recovery — sustained lactate threshold",
-        ]
-    elif interval_target_mins >= 40:
-        sessions = [
-            f"6 × 4 min in Zone 4-5 (80–95% max HR), 90s recovery — {work_mins} min total hard work",
-            f"4 × 6 min in Zone 4 (80–90% max HR), 90s easy jog recovery — threshold focus",
-            f"8 × 3 min in Zone 5 (90–100% max HR), 90s recovery — VO2max focus",
-        ]
-    else:
-        sessions = [
-            f"6 × 3 min in Zone 4-5 (80–95% max HR), 60s recovery",
-            f"4 × 5 min in Zone 4 (80–90% max HR), 90s recovery",
-            f"10 × 90s in Zone 5 (90–100% max HR), 60s recovery — short and sharp",
-        ]
-
-    actual_note = ""
     if actual_zone45_mins > 0:
         if actual_zone45_mins >= z45_target:
             actual_note = f"✅ Last week you hit ~{actual_zone45_mins} mins in Z4-5 (target: {z45_target} mins). Great work — maintain intensity."
@@ -284,7 +274,7 @@ def interval_recommendation(interval_target_mins, total_target_mins, actual_zone
     else:
         actual_note = f"Target: {z45_target} mins in Zone 4-5 this week (~20% of total volume)."
 
-    return sessions, actual_note, z45_target
+    return session, actual_note, z45_target
 
 
 # ─────────────────────────────────────────────
@@ -302,7 +292,7 @@ def fmt(mins):
 
 
 def build_email(stats, old_targets, new_targets, direction, threshold_high,
-                week_start, week_end, interval_sessions, interval_note, z45_target):
+                week_start, week_end, interval_session, interval_note, z45_target):
 
     total_target = compute_target_volume(old_targets)
     lr_ceiling   = long_run_ceiling(total_target)
@@ -365,9 +355,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
         target_row("Saturday/Sunday — long Zone 2",new_targets["long_run"], lr_note, changed("long_run"))
     )
 
-    interval_options_html = "".join(
-        f'<li style="margin-bottom:6px;">{s}</li>' for s in interval_sessions
-    )
 
     html = f"""
 <!DOCTYPE html>
@@ -458,15 +445,10 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
 
     <!-- Interval session -->
     <div style="padding:24px 32px;border-bottom:1px solid #f0f0f0;">
-      <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Tuesday interval session</p>
+      <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Tuesday interval session — Norwegian 4×4</p>
       <p style="margin:0 0 8px;font-size:14px;color:#444;">{interval_note}</p>
-      <p style="margin:0 0 8px;font-size:14px;color:#444;">Session length: <strong>{fmt(new_targets['tue_interval'])}</strong>. Pick one of:</p>
-      <ul style="margin:0;padding-left:20px;color:#333;">
-        {interval_options_html}
-      </ul>
-      <p style="margin:12px 0 0;font-size:13px;color:#999;">
-        Always bookend with 5–10 min easy warm-up and cool-down jog within the total session time.
-      </p>
+      <p style="margin:0 0 8px;font-size:14px;color:#444;">Session length: <strong>{fmt(new_targets['tue_interval'])}</strong></p>
+      <p style="margin:0;font-size:14px;color:#333;">{interval_session}</p>
     </div>
 
     <!-- Footer -->
