@@ -514,7 +514,16 @@ def main():
     for k, v in SCHEDULE.items():
         if k not in old_targets:
             old_targets[k] = v.get("current", v["floor"])
-    new_targets, direction, threshold_high = adjust_targets(old_targets, stats["total_cardio_mins"])
+
+    # REPORT_ONLY=1 → resend the email with current targets; no adjustment, no
+    # state save. Safe to trigger manually after a week that was already processed.
+    report_only = os.environ.get("REPORT_ONLY", "") == "1"
+    if report_only:
+        new_targets    = dict(old_targets)
+        direction      = "maintain"
+        threshold_high = round(compute_target_volume(old_targets) * 0.80)
+    else:
+        new_targets, direction, threshold_high = adjust_targets(old_targets, stats["total_cardio_mins"])
 
     total_target   = compute_target_volume(new_targets)
     interval_sess, interval_note, z45_target = interval_recommendation(
@@ -527,8 +536,11 @@ def main():
     )
 
     send_email(html, week_start, week_end)
-    save_state(new_targets)
-    print("Targets saved.")
+    if report_only:
+        print("Report-only mode: state not saved.")
+    else:
+        save_state(new_targets)
+        print("Targets saved.")
 
 
 if __name__ == "__main__":

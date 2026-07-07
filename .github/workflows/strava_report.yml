@@ -3,7 +3,12 @@ name: Strava Weekly Report
 on:
   schedule:
     - cron: '0 21 * * 0'  # Every Sunday at 21:00 UTC (9pm UK winter, 10pm BST summer)
-  workflow_dispatch:        # Allows manual trigger from GitHub UI for testing
+  workflow_dispatch:        # Allows manual trigger from GitHub UI
+    inputs:
+      report_only:
+        description: "Report only — email current targets without adjusting or saving them (use when the week was already processed)"
+        type: boolean
+        default: false
 
 jobs:
   send_report:
@@ -29,6 +34,7 @@ jobs:
           EMAIL_FROM:           ${{ secrets.EMAIL_FROM }}
           EMAIL_TO:             ${{ secrets.EMAIL_TO }}
           EMAIL_APP_PWD:        ${{ secrets.EMAIL_APP_PWD }}
+          REPORT_ONLY:          ${{ inputs.report_only == true && '1' || '0' }}
         run: python strava_weekly_report.py
 
       - name: Save state back to repo
