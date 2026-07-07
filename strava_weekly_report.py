@@ -35,19 +35,9 @@ SCHEDULE = {
     "tue_evie":      {"label": "Tuesday Zone 2 (Evie)",    "floor": 30,  "ceiling": 30,  "fixed": True},
     "tue_interval":  {"label": "Tuesday intervals",         "floor": 30,  "ceiling": 60,  "fixed": False, "current": 60},
     "wed_gym":       {"label": "Wednesday gym commute",     "floor": 35,  "ceiling": 35,  "fixed": True},
-    "thu_combined":  {"label": "Thursday run (total)",      "floor": 30,  "ceiling": 60,  "fixed": False, "current": 50},
+    "thu_combined":  {"label": "Thursday run with Evie",   "floor": 30,  "ceiling": 60,  "fixed": False, "current": 52},
     "fri_gym":       {"label": "Friday gym commute",        "floor": 35,  "ceiling": 35,  "fixed": True},
-    "long_run":      {"label": "Long Zone 2 (Sat or Sun)",  "floor": 63,  "ceiling": None, "fixed": False, "current": 103,
-                      "note": "Evie portion 30–60 mins; top up after drop-off"},
-}
-
-# ─────────────────────────────────────────────
-# EVIE SCHEDULE & TARGETS (minutes)
-# ─────────────────────────────────────────────
-EVIE_SCHEDULE = {
-    "evie_tue":     {"label": "Tuesday (Evie)",          "floor": 30, "ceiling": 30,  "fixed": True,  "current": 30},
-    "evie_thu":     {"label": "Thursday (Evie)",         "floor": 30, "ceiling": 60,  "fixed": False, "current": 45},
-    "evie_weekend": {"label": "Saturday/Sunday (Evie)",  "floor": 30, "ceiling": 60,  "fixed": False, "current": 45},
+    "long_run":      {"label": "Long Zone 2 (Sat or Sun)",  "floor": 63,  "ceiling": None, "fixed": False, "current": 89},
 }
 
 # Persistent state file — stores current targets between runs
@@ -60,10 +50,8 @@ STATE_FILE = os.path.join(os.path.dirname(__file__), "strava_state.json")
 def load_state():
     if os.path.exists(STATE_FILE):
         return json.load(open(STATE_FILE))
-    # First run — seed from SCHEDULE and EVIE_SCHEDULE
-    state = {k: v.get("current", v["floor"]) for k, v in SCHEDULE.items()}
-    state.update({k: v.get("current", v["floor"]) for k, v in EVIE_SCHEDULE.items()})
-    return state
+    # First run — seed from SCHEDULE
+    return {k: v.get("current", v["floor"]) for k, v in SCHEDULE.items()}
 
 
 def save_state(state):
@@ -164,15 +152,6 @@ def analyse_activities(activities, token):
     by_type           = {}
     daily             = {i: [] for i in range(7)}  # 0=Mon ... 6=Sun
 
-    # Evie session tracking
-    thu_evie_mins  = None
-    thu_solo_mins  = None
-    thu_total_mins = None
-    lr_evie_mins   = None
-    lr_solo_mins   = None
-    lr_total_mins  = None
-    tue_evie_mins  = None
-
     for a in activities:
         atype = a.get("sport_type") or a.get("type", "")  # sport_type is newer and covers types like Padel
         if atype not in CARDIO_TYPES:
@@ -194,32 +173,12 @@ def analyse_activities(activities, token):
         if atype in RUN_TYPES:
             total_run_mins += mins
 
-            if day == 1:  # Tuesday
-                if evie:
-                    tue_evie_mins = mins
-            elif day == 3:  # Thursday
-                if evie:
-                    thu_evie_mins = mins
-                else:
-                    thu_solo_mins = max(thu_solo_mins or 0, mins)
-            elif day in (5, 6):  # Saturday or Sunday
-                if evie:
-                    lr_evie_mins = (lr_evie_mins or 0) + mins  # accumulate across Sat + Sun
-                else:
-                    lr_solo_mins = max(lr_solo_mins or 0, mins)
-
         # Fetch HR zone breakdown from Strava for all cardio activities
         activity_id = a.get("id")
         if activity_id:
             zones = fetch_hr_zones(token, activity_id)
             for i in range(5):
                 hr_zones[i] += zones[i]
-
-    # Compute combined totals
-    if thu_evie_mins is not None or thu_solo_mins is not None:
-        thu_total_mins = (thu_evie_mins or 0) + (thu_solo_mins or 0)
-    if lr_evie_mins is not None or lr_solo_mins is not None:
-        lr_total_mins = (lr_evie_mins or 0) + (lr_solo_mins or 0)
 
     return {
         "total_cardio_mins": total_cardio_mins,
@@ -228,13 +187,6 @@ def analyse_activities(activities, token):
         "zone45_mins":       hr_zones[3] + hr_zones[4],
         "by_type":           by_type,
         "daily":             daily,
-        "tue_evie_mins":  tue_evie_mins,
-        "thu_evie_mins":  thu_evie_mins,
-        "thu_solo_mins":  thu_solo_mins,
-        "thu_total_mins": thu_total_mins,
-        "lr_evie_mins":   lr_evie_mins,
-        "lr_solo_mins":   lr_solo_mins,
-        "lr_total_mins":  lr_total_mins,
     }
 
 
@@ -260,35 +212,27 @@ def long_run_ceiling(total_target):
 
 
 def adjust_targets(targets, actual_cardio_mins):
-    """Apply the volume adjustment rules and return new targets."""
+    """Apply the volume adjustment rules and return new targets.
+
+    Increase-only: hit 80% of target and everything adjustable goes up 10%
+    (clamped to each session's ceiling). Miss it and targets hold — never decrease.
+    """
     total_target = compute_target_volume(targets)
     threshold_high = round(total_target * 0.80)
-    threshold_low  = 180  # 3 hours
 
     if actual_cardio_mins >= threshold_high:
-        factor = 1.10   # +10%
         direction = "increase"
-    elif actual_cardio_mins < threshold_low:
-        factor = 0.90   # -10%
-        direction = "decrease"
     else:
-        factor = 1.00
         direction = "maintain"
 
     new_targets = dict(targets)
 
-    if factor != 1.00:
+    if direction == "increase":
         adjustable = ["tue_interval", "thu_combined", "long_run"]
         for key in adjustable:
             s = SCHEDULE[key]
             old = targets[key]
-            raw = old * factor
-            # Cap single-run change at 10%
-            max_change = old * 0.10
-            if factor > 1:
-                new_val = min(old + max_change, raw)
-            else:
-                new_val = max(old - max_change, raw)
+            new_val = old * 1.10
 
             # Clamp to floor/ceiling
             floor   = s["floor"]
@@ -297,51 +241,6 @@ def adjust_targets(targets, actual_cardio_mins):
             new_targets[key] = new_val
 
     return new_targets, direction, threshold_high
-
-
-# ─────────────────────────────────────────────
-# EVIE TARGET ENGINE
-# ─────────────────────────────────────────────
-def compute_evie_target_volume(targets):
-    """Total of Evie's weekly target sessions."""
-    return targets["evie_tue"] + targets["evie_thu"] + targets["evie_weekend"]
-
-
-def adjust_evie_targets(targets, stats):
-    """Adjust Evie's targets based on her actual volume last week."""
-    evie_actual = (
-        (stats["tue_evie_mins"] or 0) +
-        (stats["thu_evie_mins"] or 0) +
-        (stats["lr_evie_mins"]  or 0)
-    )
-    total_target   = compute_evie_target_volume(targets)
-    threshold_high = round(total_target * 0.80)
-    threshold_low  = round(total_target * 0.50)
-
-    if evie_actual >= threshold_high:
-        factor    = 1.10
-        direction = "increase"
-    elif evie_actual < threshold_low:
-        factor    = 0.90
-        direction = "decrease"
-    else:
-        factor    = 1.00
-        direction = "maintain"
-
-    new_targets = dict(targets)
-    if factor != 1.00:
-        for key in ["evie_thu", "evie_weekend"]:  # tue is fixed
-            s       = EVIE_SCHEDULE[key]
-            old_val = targets[key]
-            change  = min(old_val * 0.10, abs(old_val * factor - old_val))
-            if factor > 1:
-                new_val = old_val + change
-            else:
-                new_val = old_val - change
-            new_val = max(s["floor"], min(s["ceiling"], round(new_val)))
-            new_targets[key] = new_val
-
-    return new_targets, direction, evie_actual, threshold_high, threshold_low
 
 
 # ─────────────────────────────────────────────
@@ -403,8 +302,7 @@ def fmt(mins):
 
 
 def build_email(stats, old_targets, new_targets, direction, threshold_high,
-                week_start, week_end, interval_sessions, interval_note, z45_target,
-                old_evie, new_evie, evie_direction, evie_actual, evie_thresh_high, evie_thresh_low):
+                week_start, week_end, interval_sessions, interval_note, z45_target):
 
     total_target = compute_target_volume(old_targets)
     lr_ceiling   = long_run_ceiling(total_target)
@@ -438,9 +336,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
     if direction == "increase":
         badge_color = "#1D9E75"
         badge_text  = "↑ Volume increasing +10%"
-    elif direction == "decrease":
-        badge_color = "#D85A30"
-        badge_text  = "↓ Volume decreasing −10%"
     else:
         badge_color = "#888"
         badge_text  = "→ Volume unchanged"
@@ -458,45 +353,20 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
     def changed(key):
         return new_targets[key] != old_targets[key]
 
-    # Compute top-up durations (combined target minus Evie target)
-    thu_topup  = new_targets["thu_combined"] - new_evie["evie_thu"]
-    lr_topup   = new_targets["long_run"]     - new_evie["evie_weekend"]
-
-    thu_note  = f"Evie {fmt(new_evie['evie_thu'])}"
-    lr_note   = f"Evie {fmt(new_evie['evie_weekend'])} + {fmt(lr_topup)} top-up · ceiling {fmt(lr_ceiling)}"
-
-    thu_changed = changed("thu_combined") or (new_evie["evie_thu"] != old_evie["evie_thu"])
-    lr_changed  = changed("long_run")     or (new_evie["evie_weekend"] != old_evie["evie_weekend"])
+    lr_note = f"ceiling {fmt(lr_ceiling)}"
 
     target_rows = (
         target_row("Monday — gym commute",        new_targets["mon_gym"]) +
         target_row("Tuesday — Zone 2 with Evie",  new_targets["tue_evie"]) +
         target_row("Tuesday — intervals",          new_targets["tue_interval"], changed=changed("tue_interval")) +
         target_row("Wednesday — gym commute",      new_targets["wed_gym"]) +
-        target_row("Thursday — combined run",      new_targets["thu_combined"], thu_note, thu_changed) +
+        target_row("Thursday — run with Evie",     new_targets["thu_combined"], changed=changed("thu_combined")) +
         target_row("Friday — gym commute",         new_targets["fri_gym"]) +
-        target_row("Saturday/Sunday — long Zone 2",new_targets["long_run"], lr_note, lr_changed)
+        target_row("Saturday/Sunday — long Zone 2",new_targets["long_run"], lr_note, changed("long_run"))
     )
 
     interval_options_html = "".join(
         f'<li style="margin-bottom:6px;">{s}</li>' for s in interval_sessions
-    )
-
-    # Evie target rows
-    def evie_changed(key):
-        return new_evie[key] != old_evie[key]
-
-    if evie_direction == "increase":
-        evie_badge = '<span style="font-size:12px;font-weight:500;color:#1D9E75;">↑ +10%</span>'
-    elif evie_direction == "decrease":
-        evie_badge = '<span style="font-size:12px;font-weight:500;color:#D85A30;">↓ −10%</span>'
-    else:
-        evie_badge = '<span style="font-size:12px;font-weight:500;color:#888;">→ unchanged</span>'
-
-    evie_target_rows = (
-        target_row("Tuesday", new_evie["evie_tue"]) +
-        target_row("Thursday", new_evie["evie_thu"], changed=evie_changed("evie_thu")) +
-        target_row("Saturday/Sunday", new_evie["evie_weekend"], changed=evie_changed("evie_weekend"))
     )
 
     html = f"""
@@ -562,7 +432,7 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
         {badge_text}
       </div>
       <p style="margin:8px 0 0;font-size:13px;color:#999;">
-        80% threshold: {fmt(threshold_high)} · miss up to {fmt(compute_target_volume(old_targets) - threshold_high)} mins and still progress · 3h floor
+        80% threshold: {fmt(threshold_high)} · miss up to {fmt(compute_target_volume(old_targets) - threshold_high)} and still progress · targets never decrease
       </p>
     </div>
 
@@ -576,10 +446,7 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
 
     <!-- Next week targets -->
     <div style="padding:24px 32px;border-bottom:1px solid #f0f0f0;">
-      <p style="margin:0 0 4px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Next week targets</p>
-      <p style="margin:0 0 12px;font-size:12px;color:#999;">
-        Evie last week: {fmt(evie_actual)} · target {fmt(compute_evie_target_volume(old_evie))} · {evie_badge}
-      </p>
+      <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Next week targets</p>
       <table style="width:100%;border-collapse:collapse;">
         {target_rows}
         <tr style="border-top:1px solid #f0f0f0;">
@@ -654,25 +521,13 @@ def main():
         new_targets["tue_interval"], total_target, stats["zone45_mins"]
     )
 
-    old_evie = {k: state[k] for k in EVIE_SCHEDULE if k in state}
-    # Seed any missing Evie keys (first run after adding Evie)
-    for k, v in EVIE_SCHEDULE.items():
-        if k not in old_evie:
-            old_evie[k] = v.get("current", v["floor"])
-
-    new_evie, evie_direction, evie_actual, evie_thresh_high, evie_thresh_low = adjust_evie_targets(old_evie, stats)
-
     html = build_email(
         stats, old_targets, new_targets, direction, threshold_high,
-        week_start, week_end, interval_sess, interval_note, z45_target,
-        old_evie, new_evie, evie_direction, evie_actual, evie_thresh_high, evie_thresh_low
+        week_start, week_end, interval_sess, interval_note, z45_target
     )
 
     send_email(html, week_start, week_end)
-    # Save both Alex and Evie targets
-    combined = dict(new_targets)
-    combined.update(new_evie)
-    save_state(combined)
+    save_state(new_targets)
     print("Targets saved.")
 
 
