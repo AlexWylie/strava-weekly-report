@@ -4,9 +4,9 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 
 ## What it does
 
-- Pulls all cardio activities from the last completed Mon–Sun week via the Strava API
+- Pulls all qualifying activities (running, treadmill, football) from the last completed Mon–Sun week via the Strava API
 - Summarises total volume, activity breakdown, and actual Zone 4-5 time (from your HR monitor data)
-- Compares actual volume against your targets and increases next week's targets if you hit the threshold — targets never decrease
+- Compares actual volume against your targets and adjusts next week's targets
 - Prescribes a Norwegian 4×4 interval session for Tuesday, sized to the interval target
 - Sends a formatted HTML email from Gmail to your Hotmail inbox every Sunday at 9pm
 
@@ -26,21 +26,19 @@ Current targets live in `strava_state.json`.
 
 ## Target adjustment rules
 
-Applied each Sunday based on last week's actual cardio volume:
+Applied each Sunday based on last week's actual qualifying volume:
 
-| Last week's cardio | Outcome |
-|--------------------|---------|
+| Last week | Outcome |
+|-----------|---------|
 | ≥ 80% of target volume | +10% on adjustable sessions (clamped to ceilings) |
-| Below that | No change |
+| No qualifying activity at all | −10% on adjustable sessions (clamped to floors) |
+| Anything in between | No change |
 
-Targets are increase-only — they never decrease automatically. After injury or a
-break, lower them manually by editing `strava_state.json`.
+## Activity types counted
 
-## Cardio activity types counted
+Only running (including treadmill and virtual runs) and football (logged as Soccer in Strava) count toward volume. Everything else — cycling, Peloton, swimming, padel, gym work — is excluded from the totals and the daily log. The gym commutes in the schedule are runs, so they count.
 
-Runs, cycling (all variants), swimming, football (logged as Soccer in Strava), skiing (Alpine, Nordic, Backcountry), elliptical, rowing, stair stepper, padel. Walking and hiking excluded.
-
-Activity type is read from Strava's `sport_type` field (falling back to the legacy `type` field), so newer sports like Padel are recognised correctly.
+Activity type is read from Strava's `sport_type` field (falling back to the legacy `type` field).
 
 ## Evie run detection
 

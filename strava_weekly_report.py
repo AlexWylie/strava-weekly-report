@@ -108,13 +108,10 @@ def fetch_last_week_activities(token):
     return activities, last_monday, last_sunday
 
 
+# Only running (incl. treadmill/virtual) and football count toward volume.
 CARDIO_TYPES = {
     "Run", "VirtualRun", "TrailRun",
-    "Ride", "VirtualRide", "MountainBikeRide",
-    "Swim", "Elliptical", "StairStepper", "Rowing",
     "Soccer",                                         # Football in Strava
-    "AlpineSki", "NordicSki", "BackcountrySki",       # Skiing
-    "Padel",                                          # Added to Strava Feb 2026; manually correct in Strava if Garmin syncs it as Workout
 }
 
 RUN_TYPES = {"Run", "VirtualRun", "TrailRun"}
@@ -214,25 +211,30 @@ def long_run_ceiling(total_target):
 def adjust_targets(targets, actual_cardio_mins):
     """Apply the volume adjustment rules and return new targets.
 
-    Increase-only: hit 80% of target and everything adjustable goes up 10%
-    (clamped to each session's ceiling). Miss it and targets hold — never decrease.
+    Hit 80% of target → everything adjustable goes up 10% (clamped to ceilings).
+    No qualifying activity at all (no run/treadmill/football all week) →
+    everything adjustable drops 10% (clamped to floors). Otherwise targets hold.
     """
     total_target = compute_target_volume(targets)
     threshold_high = round(total_target * 0.80)
 
     if actual_cardio_mins >= threshold_high:
+        factor    = 1.10
         direction = "increase"
+    elif actual_cardio_mins == 0:
+        factor    = 0.90
+        direction = "decrease"
     else:
+        factor    = 1.00
         direction = "maintain"
 
     new_targets = dict(targets)
 
-    if direction == "increase":
+    if factor != 1.00:
         adjustable = ["tue_interval", "thu_combined", "long_run"]
         for key in adjustable:
             s = SCHEDULE[key]
-            old = targets[key]
-            new_val = old * 1.10
+            new_val = targets[key] * factor
 
             # Clamp to floor/ceiling
             floor   = s["floor"]
@@ -326,6 +328,9 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
     if direction == "increase":
         badge_color = "#1D9E75"
         badge_text  = "↑ Volume increasing +10%"
+    elif direction == "decrease":
+        badge_color = "#D85A30"
+        badge_text  = "↓ Volume decreasing −10% — no runs logged last week"
     else:
         badge_color = "#888"
         badge_text  = "→ Volume unchanged"
@@ -419,7 +424,7 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
         {badge_text}
       </div>
       <p style="margin:8px 0 0;font-size:13px;color:#999;">
-        80% threshold: {fmt(threshold_high)} · miss up to {fmt(compute_target_volume(old_targets) - threshold_high)} and still progress · targets never decrease
+        80% threshold: {fmt(threshold_high)} · miss up to {fmt(compute_target_volume(old_targets) - threshold_high)} and still progress · −10% only if no runs all week
       </p>
     </div>
 
