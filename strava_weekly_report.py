@@ -35,7 +35,6 @@ SCHEDULE = {
     "tue_evie":      {"label": "Tuesday Zone 2 (Evie)",    "floor": 30,  "ceiling": 30,  "fixed": True},
     "tue_interval":  {"label": "Tuesday intervals",         "floor": 30,  "ceiling": 60,  "fixed": False, "current": 60},
     "wed_gym":       {"label": "Wednesday gym commute",     "floor": 35,  "ceiling": 35,  "fixed": True},
-    "thu_combined":  {"label": "Thursday run with Evie",   "floor": 30,  "ceiling": 60,  "fixed": False, "current": 52},
     "fri_gym":       {"label": "Friday gym commute",        "floor": 35,  "ceiling": 35,  "fixed": True},
     "long_run":      {"label": "Long Zone 2 (Sat or Sun)",  "floor": 63,  "ceiling": None, "fixed": False, "current": 89},
 }
@@ -197,7 +196,6 @@ def compute_target_volume(targets):
         targets["tue_evie"] +
         targets["tue_interval"] +
         targets["wed_gym"] +
-        targets["thu_combined"] +
         targets["fri_gym"] +
         targets["long_run"]
     )
@@ -231,7 +229,7 @@ def adjust_targets(targets, actual_cardio_mins):
     new_targets = dict(targets)
 
     if factor != 1.00:
-        adjustable = ["tue_interval", "thu_combined", "long_run"]
+        adjustable = ["tue_interval", "long_run"]
         for key in adjustable:
             s = SCHEDULE[key]
             new_val = targets[key] * factor
@@ -355,7 +353,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
         target_row("Tuesday — Zone 2 with Evie",  new_targets["tue_evie"]) +
         target_row("Tuesday — intervals",          new_targets["tue_interval"], changed=changed("tue_interval")) +
         target_row("Wednesday — gym commute",      new_targets["wed_gym"]) +
-        target_row("Thursday — run with Evie",     new_targets["thu_combined"], changed=changed("thu_combined")) +
         target_row("Friday — gym commute",         new_targets["fri_gym"]) +
         target_row("Saturday/Sunday — long Zone 2",new_targets["long_run"], lr_note, changed("long_run"))
     )

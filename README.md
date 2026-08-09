@@ -18,7 +18,7 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 | Tuesday | Zone 2 with Evie | 30 min | — | Fixed |
 | Tuesday | Intervals | adjustable | 60 min | Norwegian 4×4 |
 | Wednesday | Gym commute | 35 min | — | Fixed |
-| Thursday | Run with Evie | adjustable | 60 min | Run together, one activity |
+| Thursday | Cycling | — | — | Not tracked — cycling doesn't count toward volume |
 | Friday | Gym commute | 35 min | — | Fixed |
 | Sat/Sun | Long Zone 2 (solo) | adjustable | 180 min | Marathon long-run cap |
 
