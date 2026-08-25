@@ -32,7 +32,6 @@ EMAIL_APP_PWD = os.environ.get("EMAIL_APP_PWD", "YOUR_GMAIL_APP_PASSWORD")
 # fixed=True → never adjusts
 SCHEDULE = {
     "mon_gym":       {"label": "Monday gym commute",       "floor": 35,  "ceiling": 35,  "fixed": True},
-    "tue_evie":      {"label": "Tuesday Zone 2 (Evie)",    "floor": 30,  "ceiling": 30,  "fixed": True},
     "tue_interval":  {"label": "Tuesday intervals",         "floor": 30,  "ceiling": 60,  "fixed": False, "current": 60},
     "wed_gym":       {"label": "Wednesday gym commute",     "floor": 35,  "ceiling": 35,  "fixed": True},
     "fri_gym":       {"label": "Friday gym commute",        "floor": 35,  "ceiling": 35,  "fixed": True},
@@ -193,7 +192,6 @@ def compute_target_volume(targets):
     """Total target volume from current targets (sum of all sessions)."""
     return (
         targets["mon_gym"] +
-        targets["tue_evie"] +
         targets["tue_interval"] +
         targets["wed_gym"] +
         targets["fri_gym"] +
@@ -350,7 +348,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
 
     target_rows = (
         target_row("Monday — gym commute",        new_targets["mon_gym"]) +
-        target_row("Tuesday — Zone 2 with Evie",  new_targets["tue_evie"]) +
         target_row("Tuesday — intervals",          new_targets["tue_interval"], changed=changed("tue_interval")) +
         target_row("Wednesday — gym commute",      new_targets["wed_gym"]) +
         target_row("Friday — gym commute",         new_targets["fri_gym"]) +

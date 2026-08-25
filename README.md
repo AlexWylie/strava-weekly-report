@@ -15,7 +15,6 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 | Day | Session | Target | Ceiling | Notes |
 |-----|---------|--------|---------|-------|
 | Monday | Gym commute | 35 min | — | Fixed |
-| Tuesday | Zone 2 with Evie | 30 min | — | Fixed |
 | Tuesday | Intervals | adjustable | 60 min | Norwegian 4×4 |
 | Wednesday | Gym commute | 35 min | — | Fixed |
 | Thursday | Cycling | — | — | Not tracked — cycling doesn't count toward volume |
