@@ -22,8 +22,9 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 | Wednesday | Gym commute | 35 min | — | Fixed |
 | Thursday | Cycling | — | — | Not tracked — cycling doesn't count toward volume |
 | Friday | Gym commute | 35 min | — | Fixed |
-| Friday lunch | **Tempo** | 35 now, adjustable | 60 min | WFH; tempo on Sunday-long-run weeks, easy otherwise |
-| Sat/Sun | Long Zone 2 (solo) | adjustable | 180 min | Marathon long-run cap |
+| Friday lunch | **Tempo** | 35 now, adjustable | 60 min | WFH |
+| Saturday | Rest | — | — | |
+| Sunday | Long Zone 2 (solo) | adjustable | 180 min | Marathon long-run cap |
 
 Current targets live in `strava_state.json`.
 
@@ -55,7 +56,7 @@ Zone 4-5 time is pulled directly from Strava's `/activities/{id}/zones` endpoint
 
 ## Friday lunch — tempo
 
-Warm-up and cool-down take ~25% each (capped at 15 min); the block is the rest. At 35 that's 9 / 17 / 9; at 60 it's 15 / 30 / 15. The block is run by heart rate — **167–172 bpm**, comfortably hard — not by pace. On weeks the long run falls on Saturday, the whole session is run easy instead.
+Warm-up and cool-down take ~25% each (capped at 15 min); the block is the rest. At 35 that's 9 / 17 / 9; at 60 it's 15 / 30 / 15. The block is run by heart rate — **167–172 bpm**, comfortably hard — not by pace.
 
 ## Tuesday — Norwegian 4×4 fallback
 
@@ -86,7 +87,7 @@ Target: **Sunday 18 April 2027, 3:30** (4:58/km). Strava's model predicted ~4:19
 
 **Checkpoint:** a half marathon between 24 Jan and 21 Feb. ~1:40–1:42 confirms 3:30; ~1:48+ means retarget to 3:45.
 
-**Known compromises, by choice:** the long run is 3h every week with no cutback weeks; Friday's tempo precedes a Saturday long run roughly half the time, so it's run easy on those weeks and caps at 60 not 75; Tuesday carries up to three runs including football; Thursday is a ride-only day and cycling is not counted.
+**Known compromises, by choice:** the long run is 3h every week with no cutback weeks; Friday's tempo caps at 60; Tuesday carries up to three runs including football; Thursday is a ride-only day and cycling is not counted.
 
 ## Setup
 

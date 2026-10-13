@@ -39,9 +39,8 @@ SCHEDULE = {
     "tue_interval": {"label": "Tuesday — football, or 4×4 if cancelled", "floor": 30, "ceiling": 60,   "fixed": False, "current": 60},
     "wed_gym":      {"label": "Wednesday — gym commute",                 "floor": 35, "ceiling": 35,   "fixed": True},
     "fri_gym":      {"label": "Friday — gym commute",                    "floor": 35, "ceiling": 35,   "fixed": True},
-    "fri_lunch":    {"label": "Friday — lunch tempo",                    "floor": 20, "ceiling": 60,   "fixed": False, "staged": True,
-                     "note": "tempo on Sunday-long-run weeks, easy otherwise — see below"},
-    "long_run":     {"label": "Saturday/Sunday — long Zone 2",           "floor": 63, "ceiling": None, "fixed": False, "current": 89},
+    "fri_lunch":    {"label": "Friday — lunch tempo",                    "floor": 20, "ceiling": 60,   "fixed": False, "staged": True},
+    "long_run":     {"label": "Sunday — long Zone 2",                    "floor": 63, "ceiling": None, "fixed": False, "current": 89},
 }
 # staged=True → not part of the plan until admitted. The state file's "pending" list
 # holds the admission order; each qualifying week admits the next one at 10% of the
@@ -399,7 +398,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
       <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Friday lunch — tempo</p>
       <p style="margin:0 0 8px;font-size:14px;color:#444;">Session length: <strong>{fmt(new_targets['fri_lunch'])}</strong></p>
       <p style="margin:0 0 8px;font-size:14px;color:#333;">{bookend} min easy → {block} min comfortably hard at 167–172 bpm → {bookend} min easy</p>
-      <p style="margin:0;font-size:13px;color:#999;">Run it as a tempo on weeks the long run is Sunday. If the long run is Saturday, keep the whole session easy (under 140 bpm). Hold the heart rate, not a pace — the pace at that HR will drop as fitness returns.</p>
     </div>
 """
 
