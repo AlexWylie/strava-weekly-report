@@ -3,5 +3,6 @@
   "tue_interval": 60,
   "wed_gym": 35,
   "fri_gym": 35,
+  "fri_lunch": 45,
   "long_run": 180
 }

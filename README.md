@@ -7,7 +7,7 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 - Pulls all qualifying activities (running, treadmill, football) from the last completed Mon–Sun week via the Strava API
 - Summarises total volume, activity breakdown, and actual Zone 4-5 time (from your HR monitor data)
 - Compares actual volume against your targets and adjusts next week's targets
-- Prescribes a Norwegian 4×4 interval session for Tuesday, sized to the interval target
+- Prescribes a Norwegian 4×4 for Tuesday as the fallback when football is cancelled, sized to the Tuesday target
 - Sends a formatted HTML email from Gmail to your Hotmail inbox every Sunday at 9pm
 
 ## Schedule
@@ -15,10 +15,11 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 | Day | Session | Target | Ceiling | Notes |
 |-----|---------|--------|---------|-------|
 | Monday | Gym commute | 35 min | — | Fixed |
-| Tuesday | Intervals | adjustable | 60 min | Norwegian 4×4 |
+| Tuesday | Football, or 4×4 if cancelled | adjustable | 60 min | One quality session |
 | Wednesday | Gym commute | 35 min | — | Fixed |
 | Thursday | Cycling | — | — | Not tracked — cycling doesn't count toward volume |
 | Friday | Gym commute | 35 min | — | Fixed |
+| Friday lunch | Medium-long run | adjustable | 60 min | WFH; starts at 45 |
 | Sat/Sun | Long Zone 2 (solo) | adjustable | 180 min | Marathon long-run cap |
 
 Current targets live in `strava_state.json`.
@@ -47,9 +48,9 @@ Any run with 🐶 in the Strava activity name is tagged "Evie" in the email's da
 
 Zone 4-5 time is pulled directly from Strava's `/activities/{id}/zones` endpoint using your HR monitor data. Requires a HR monitor on every run. The weekly Z4-5 target is ~20% of total volume.
 
-## Tuesday interval session — Norwegian 4×4
+## Tuesday — Norwegian 4×4 fallback
 
-The email prescribes one session: **4 × 4 min in Zone 4-5 (~90% max HR) with 3 min easy jog recoveries** — a fixed 25-minute core block. The remainder of the session target is allocated to a warm-up (capped at 15 min), with whatever is left as warm-down.
+Tuesday is one 60-minute quality slot: football when it's on, otherwise the email's prescribed session: **4 × 4 min in Zone 4-5 (~90% max HR) with 3 min easy jog recoveries** — a fixed 25-minute core block. The remainder of the session target is allocated to a warm-up (capped at 15 min), with whatever is left as warm-down.
 
 ## Reporting window
 
@@ -61,6 +62,22 @@ The workflow can be triggered manually from the Actions tab. Two modes:
 
 - **Default** — full run: fetch, adjust targets, email, save state. Use this to recover a failed Sunday run.
 - **Report only** (checkbox on the manual trigger) — emails the report with current targets, without adjusting or saving anything. Use this to resend a week that was already processed; a default re-run of a processed week would apply the +10% twice.
+
+## Marathon plan
+
+Target: **Sunday 18 April 2027, 3:30** (4:58/km). Strava's model predicted ~4:19 in Oct 2026, and the 1:38 half anchoring the goal was run at roughly 2.4× that fitness score — so 3:30 is the stretch target and 3:45 the realistic one unless the build goes well.
+
+| Weeks | Dates | Phase |
+|-------|-------|-------|
+| 1–9 | 12 Oct – 13 Dec 2026 | Base — bed in the Friday lunch run; ratchet |
+| 10–11 | 14 – 27 Dec | Hold — no increases over Christmas |
+| 12–23 | 28 Dec – 21 Mar 2027 | Build — peak volume ~7h/week |
+| 24–26 | 22 Mar – 11 Apr | Taper — cut volume ~25% / 40% / 55% by hand in `strava_state.json` |
+| 27 | 12 – 18 Apr | Race |
+
+**Checkpoint:** a half marathon between 24 Jan and 21 Feb. ~1:40–1:42 confirms 3:30; ~1:48+ means retarget to 3:45.
+
+**Known compromises, by choice:** the long run is 3h every week with no cutback weeks; Friday lunch precedes a Saturday long run roughly half the time, which is why it caps at 60 not 75; Thursday is a ride-only day and cycling is not counted.
 
 ## Setup
 

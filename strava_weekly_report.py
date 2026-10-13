@@ -32,9 +32,10 @@ EMAIL_APP_PWD = os.environ.get("EMAIL_APP_PWD", "YOUR_GMAIL_APP_PASSWORD")
 # fixed=True → never adjusts
 SCHEDULE = {
     "mon_gym":       {"label": "Monday gym commute",       "floor": 35,  "ceiling": 35,  "fixed": True},
-    "tue_interval":  {"label": "Tuesday intervals",         "floor": 30,  "ceiling": 60,  "fixed": False, "current": 60},
+    "tue_interval":  {"label": "Tuesday football / 4×4",   "floor": 30,  "ceiling": 60,  "fixed": False, "current": 60},
     "wed_gym":       {"label": "Wednesday gym commute",     "floor": 35,  "ceiling": 35,  "fixed": True},
     "fri_gym":       {"label": "Friday gym commute",        "floor": 35,  "ceiling": 35,  "fixed": True},
+    "fri_lunch":     {"label": "Friday lunch run",          "floor": 45,  "ceiling": 60,  "fixed": False, "current": 45},
     "long_run":      {"label": "Long Zone 2 (Sat or Sun)",  "floor": 63,  "ceiling": None, "fixed": False, "current": 89},
 }
 
@@ -195,6 +196,7 @@ def compute_target_volume(targets):
         targets["tue_interval"] +
         targets["wed_gym"] +
         targets["fri_gym"] +
+        targets["fri_lunch"] +
         targets["long_run"]
     )
 
@@ -227,7 +229,7 @@ def adjust_targets(targets, actual_cardio_mins):
     new_targets = dict(targets)
 
     if factor != 1.00:
-        adjustable = ["tue_interval", "long_run"]
+        adjustable = ["tue_interval", "fri_lunch", "long_run"]
         for key in adjustable:
             s = SCHEDULE[key]
             new_val = targets[key] * factor
@@ -348,9 +350,10 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
 
     target_rows = (
         target_row("Monday — gym commute",        new_targets["mon_gym"]) +
-        target_row("Tuesday — intervals",          new_targets["tue_interval"], changed=changed("tue_interval")) +
+        target_row("Tuesday — football, or 4×4 if cancelled", new_targets["tue_interval"], changed=changed("tue_interval")) +
         target_row("Wednesday — gym commute",      new_targets["wed_gym"]) +
         target_row("Friday — gym commute",         new_targets["fri_gym"]) +
+        target_row("Friday — lunch run",           new_targets["fri_lunch"], changed=changed("fri_lunch")) +
         target_row("Saturday/Sunday — long Zone 2",new_targets["long_run"], lr_note, changed("long_run"))
     )
 
@@ -444,7 +447,7 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
 
     <!-- Interval session -->
     <div style="padding:24px 32px;border-bottom:1px solid #f0f0f0;">
-      <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Tuesday interval session — Norwegian 4×4</p>
+      <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Tuesday — if football is cancelled: Norwegian 4×4</p>
       <p style="margin:0 0 8px;font-size:14px;color:#444;">{interval_note}</p>
       <p style="margin:0 0 8px;font-size:14px;color:#444;">Session length: <strong>{fmt(new_targets['tue_interval'])}</strong></p>
       <p style="margin:0;font-size:14px;color:#333;">{interval_session}</p>
