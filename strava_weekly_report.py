@@ -368,13 +368,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
         if key == admitted:
             note = "new this week" + (f" · {note}" if note else "")
         target_rows += target_row(s["label"], new_targets[key], note, key == admitted or changed(key))
-    for key in pending:
-        target_rows += f"""
-        <tr>
-          <td style="padding:8px 12px;font-size:14px;color:#bbb;">{SCHEDULE[key]['label']}<br>
-            <span style="font-size:12px;color:#bbb;">next up — added on the next qualifying week at 10% of the total</span></td>
-          <td style="padding:8px 12px;text-align:right;font-size:14px;color:#bbb;">—</td>
-        </tr>"""
 
 
 
