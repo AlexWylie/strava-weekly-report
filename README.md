@@ -7,7 +7,7 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 - Pulls all qualifying activities (running, treadmill, football) from the last completed Mon–Sun week via the Strava API
 - Summarises total volume, activity breakdown, and actual Zone 4-5 time (from your HR monitor data)
 - Compares actual volume against your targets and adjusts next week's targets
-- Prescribes a Friday tempo sized to its target; the Tuesday 4×4 fallback is documented below, not in the email
+- Session prescriptions (Friday tempo, Tuesday 4×4 fallback) are documented below, not printed in the email
 - Stages new sessions into the plan one at a time, each at 10% of the weekly total
 - Sends a formatted HTML email from Gmail to your Hotmail inbox every Sunday at 9pm
 

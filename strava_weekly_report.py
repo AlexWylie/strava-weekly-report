@@ -286,19 +286,6 @@ def interval_recommendation(interval_target_mins, total_target_mins, actual_zone
 
 
 # ─────────────────────────────────────────────
-# FRIDAY TEMPO
-# ─────────────────────────────────────────────
-def tempo_recommendation(tempo_target_mins):
-    """Split the Friday session into warm-up / tempo block / cool-down.
-
-    Warm-up and cool-down take ~25% each, capped at 15 min; the block is the rest.
-    """
-    bookend = min(15, round(tempo_target_mins * 0.25))
-    block   = tempo_target_mins - 2 * bookend
-    return bookend, block
-
-
-# ─────────────────────────────────────────────
 # EMAIL
 # ─────────────────────────────────────────────
 def fmt(mins):
@@ -389,17 +376,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
           <td style="padding:8px 12px;text-align:right;font-size:14px;color:#bbb;">—</td>
         </tr>"""
 
-    tempo_html = ""
-    if "fri_lunch" in new_targets:
-        bookend, block = tempo_recommendation(new_targets["fri_lunch"])
-        tempo_html = f"""
-    <!-- Friday tempo -->
-    <div style="padding:24px 32px;border-bottom:1px solid #f0f0f0;">
-      <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Friday lunch — tempo</p>
-      <p style="margin:0 0 8px;font-size:14px;color:#444;">Session length: <strong>{fmt(new_targets['fri_lunch'])}</strong></p>
-      <p style="margin:0 0 8px;font-size:14px;color:#333;">{bookend} min easy → {block} min comfortably hard at 167–172 bpm → {bookend} min easy</p>
-    </div>
-"""
 
 
     html = f"""
@@ -491,7 +467,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
       </table>
     </div>
 
-{tempo_html}
     <!-- Footer -->
     <div style="padding:20px 32px;background:#fafafa;">
       <p style="margin:0;font-size:12px;color:#bbb;text-align:center;">
