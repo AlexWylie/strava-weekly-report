@@ -7,7 +7,7 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 - Pulls all qualifying activities (running, treadmill, football) from the last completed Mon–Sun week via the Strava API
 - Summarises total volume, activity breakdown, and actual Zone 4-5 time (from your HR monitor data)
 - Compares actual volume against your targets and adjusts next week's targets
-- Prescribes a Friday tempo and, as the Tuesday fallback when football is cancelled, a Norwegian 4×4 — both sized to their targets
+- Prescribes a Friday tempo sized to its target; the Tuesday 4×4 fallback is documented below, not in the email
 - Stages new sessions into the plan one at a time, each at 10% of the weekly total
 - Sends a formatted HTML email from Gmail to your Hotmail inbox every Sunday at 9pm
 
@@ -60,7 +60,7 @@ Warm-up and cool-down take ~25% each (capped at 15 min); the block is the rest. 
 
 ## Tuesday — Norwegian 4×4 fallback
 
-Tuesday is one 60-minute quality slot: football when it's on, otherwise the email's prescribed session: **4 × 4 min in Zone 4-5 (~90% max HR) with 3 min easy jog recoveries** — a fixed 25-minute core block. The remainder of the session target is allocated to a warm-up (capped at 15 min), with whatever is left as warm-down.
+Tuesday is one 60-minute quality slot: football when it's on, otherwise this session (not printed in the email): **4 × 4 min in Zone 4-5 (~90% max HR) with 3 min easy jog recoveries** — a fixed 25-minute core block. The remainder of the session target is allocated to a warm-up (capped at 15 min), with whatever is left as warm-down.
 
 ## Reporting window
 

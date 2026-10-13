@@ -459,6 +459,8 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
         </table>
       </div>
 
+      <p style="margin:12px 0 0;font-size:14px;color:#444;">{interval_note}</p>
+
       <div style="margin-top:12px;display:inline-block;background:{badge_color}18;
                   color:{badge_color};font-size:13px;font-weight:500;
                   padding:5px 12px;border-radius:6px;">
@@ -487,14 +489,6 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
           <td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:500;">{fmt(compute_target_volume(new_targets))}</td>
         </tr>
       </table>
-    </div>
-
-    <!-- Interval session -->
-    <div style="padding:24px 32px;border-bottom:1px solid #f0f0f0;">
-      <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Tuesday — if football is cancelled: Norwegian 4×4</p>
-      <p style="margin:0 0 8px;font-size:14px;color:#444;">{interval_note}</p>
-      <p style="margin:0 0 8px;font-size:14px;color:#444;">Session length: <strong>{fmt(new_targets['tue_interval'])}</strong></p>
-      <p style="margin:0;font-size:14px;color:#333;">{interval_session}</p>
     </div>
 
 {tempo_html}
