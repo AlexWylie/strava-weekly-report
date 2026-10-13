@@ -7,7 +7,8 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 - Pulls all qualifying activities (running, treadmill, football) from the last completed Mon–Sun week via the Strava API
 - Summarises total volume, activity breakdown, and actual Zone 4-5 time (from your HR monitor data)
 - Compares actual volume against your targets and adjusts next week's targets
-- Prescribes a Norwegian 4×4 for Tuesday as the fallback when football is cancelled, sized to the Tuesday target
+- Prescribes a Friday tempo and, as the Tuesday fallback when football is cancelled, a Norwegian 4×4 — both sized to their targets
+- Stages new sessions into the plan one at a time, each at 10% of the weekly total
 - Sends a formatted HTML email from Gmail to your Hotmail inbox every Sunday at 9pm
 
 ## Schedule
@@ -15,11 +16,13 @@ A Python script that runs automatically every Sunday at 9pm, pulls last week's S
 | Day | Session | Target | Ceiling | Notes |
 |-----|---------|--------|---------|-------|
 | Monday | Gym commute | 35 min | — | Fixed |
-| Tuesday | Football, or 4×4 if cancelled | adjustable | 60 min | One quality session |
+| Tuesday morning | Easy run | staged — 2nd | 60 min | Easy, under 140 bpm |
+| Tuesday lunch | Easy run | staged — 3rd | 60 min | Easy, under 140 bpm |
+| Tuesday evening | Football, or 4×4 if cancelled | adjustable | 60 min | One quality session |
 | Wednesday | Gym commute | 35 min | — | Fixed |
 | Thursday | Cycling | — | — | Not tracked — cycling doesn't count toward volume |
 | Friday | Gym commute | 35 min | — | Fixed |
-| Friday lunch | Medium-long run | adjustable | 60 min | WFH; starts at 45 |
+| Friday lunch | **Tempo** | 35 now, adjustable | 60 min | WFH; tempo on Sunday-long-run weeks, easy otherwise |
 | Sat/Sun | Long Zone 2 (solo) | adjustable | 180 min | Marathon long-run cap |
 
 Current targets live in `strava_state.json`.
@@ -34,6 +37,8 @@ Applied each Sunday based on last week's actual qualifying volume:
 | No qualifying activity at all | −10% on adjustable sessions (clamped to floors) |
 | Anything in between | No change |
 
+**Staging.** New sessions don't all start at once. `strava_state.json` holds a `pending` list; on a qualifying week the next session is admitted at 10% of the weekly total instead of the ratchet running — that week's whole 10% allowance goes to the new run. Once nothing is pending, the normal +10% applies to every adjustable session. Current order: Friday tempo (in), then Tuesday morning, then Tuesday lunch.
+
 ## Activity types counted
 
 Only running (including treadmill and virtual runs) and football (logged as Soccer in Strava) count toward volume. Everything else — cycling, Peloton, swimming, padel, gym work — is excluded from the totals and the daily log. The gym commutes in the schedule are runs, so they count.
@@ -47,6 +52,10 @@ Any run with 🐶 in the Strava activity name is tagged "Evie" in the email's da
 ## Zone 4-5 tracking
 
 Zone 4-5 time is pulled directly from Strava's `/activities/{id}/zones` endpoint using your HR monitor data. Requires a HR monitor on every run. The weekly Z4-5 target is ~20% of total volume.
+
+## Friday lunch — tempo
+
+Warm-up and cool-down take ~25% each (capped at 15 min); the block is the rest. At 35 that's 9 / 17 / 9; at 60 it's 15 / 30 / 15. The block is run by heart rate — **167–172 bpm**, comfortably hard — not by pace. On weeks the long run falls on Saturday, the whole session is run easy instead.
 
 ## Tuesday — Norwegian 4×4 fallback
 
@@ -69,7 +78,7 @@ Target: **Sunday 18 April 2027, 3:30** (4:58/km). Strava's model predicted ~4:19
 
 | Weeks | Dates | Phase |
 |-------|-------|-------|
-| 1–9 | 12 Oct – 13 Dec 2026 | Base — bed in the Friday lunch run; ratchet |
+| 1–9 | 12 Oct – 13 Dec 2026 | Base — stage in Friday tempo, Tuesday morning, Tuesday lunch; then ratchet |
 | 10–11 | 14 – 27 Dec | Hold — no increases over Christmas |
 | 12–23 | 28 Dec – 21 Mar 2027 | Build — peak volume ~7h/week |
 | 24–26 | 22 Mar – 11 Apr | Taper — cut volume ~25% / 40% / 55% by hand in `strava_state.json` |
@@ -77,7 +86,7 @@ Target: **Sunday 18 April 2027, 3:30** (4:58/km). Strava's model predicted ~4:19
 
 **Checkpoint:** a half marathon between 24 Jan and 21 Feb. ~1:40–1:42 confirms 3:30; ~1:48+ means retarget to 3:45.
 
-**Known compromises, by choice:** the long run is 3h every week with no cutback weeks; Friday lunch precedes a Saturday long run roughly half the time, which is why it caps at 60 not 75; Thursday is a ride-only day and cycling is not counted.
+**Known compromises, by choice:** the long run is 3h every week with no cutback weeks; Friday's tempo precedes a Saturday long run roughly half the time, so it's run easy on those weeks and caps at 60 not 75; Tuesday carries up to three runs including football; Thursday is a ride-only day and cycling is not counted.
 
 ## Setup
 

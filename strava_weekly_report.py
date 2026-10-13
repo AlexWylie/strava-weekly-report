@@ -31,13 +31,21 @@ EMAIL_APP_PWD = os.environ.get("EMAIL_APP_PWD", "YOUR_GMAIL_APP_PASSWORD")
 # Each session: { floor, ceiling, fixed, label }
 # fixed=True → never adjusts
 SCHEDULE = {
-    "mon_gym":       {"label": "Monday gym commute",       "floor": 35,  "ceiling": 35,  "fixed": True},
-    "tue_interval":  {"label": "Tuesday football / 4×4",   "floor": 30,  "ceiling": 60,  "fixed": False, "current": 60},
-    "wed_gym":       {"label": "Wednesday gym commute",     "floor": 35,  "ceiling": 35,  "fixed": True},
-    "fri_gym":       {"label": "Friday gym commute",        "floor": 35,  "ceiling": 35,  "fixed": True},
-    "fri_lunch":     {"label": "Friday lunch run",          "floor": 45,  "ceiling": 60,  "fixed": False, "current": 45},
-    "long_run":      {"label": "Long Zone 2 (Sat or Sun)",  "floor": 63,  "ceiling": None, "fixed": False, "current": 89},
+    "mon_gym":      {"label": "Monday — gym commute",                    "floor": 35, "ceiling": 35,   "fixed": True},
+    "tue_am":       {"label": "Tuesday — morning easy run",              "floor": 20, "ceiling": 60,   "fixed": False, "staged": True,
+                     "note": "easy, under 140 bpm"},
+    "tue_lunch":    {"label": "Tuesday — lunch easy run",                "floor": 20, "ceiling": 60,   "fixed": False, "staged": True,
+                     "note": "easy, under 140 bpm"},
+    "tue_interval": {"label": "Tuesday — football, or 4×4 if cancelled", "floor": 30, "ceiling": 60,   "fixed": False, "current": 60},
+    "wed_gym":      {"label": "Wednesday — gym commute",                 "floor": 35, "ceiling": 35,   "fixed": True},
+    "fri_gym":      {"label": "Friday — gym commute",                    "floor": 35, "ceiling": 35,   "fixed": True},
+    "fri_lunch":    {"label": "Friday — lunch tempo",                    "floor": 20, "ceiling": 60,   "fixed": False, "staged": True,
+                     "note": "tempo on Sunday-long-run weeks, easy otherwise — see below"},
+    "long_run":     {"label": "Saturday/Sunday — long Zone 2",           "floor": 63, "ceiling": None, "fixed": False, "current": 89},
 }
+# staged=True → not part of the plan until admitted. The state file's "pending" list
+# holds the admission order; each qualifying week admits the next one at 10% of the
+# weekly total, and nothing else grows that week.
 
 # Persistent state file — stores current targets between runs
 STATE_FILE = os.path.join(os.path.dirname(__file__), "strava_state.json")
@@ -49,8 +57,10 @@ STATE_FILE = os.path.join(os.path.dirname(__file__), "strava_state.json")
 def load_state():
     if os.path.exists(STATE_FILE):
         return json.load(open(STATE_FILE))
-    # First run — seed from SCHEDULE
-    return {k: v.get("current", v["floor"]) for k, v in SCHEDULE.items()}
+    # First run — seed from SCHEDULE (staged sessions wait in "pending")
+    state = {k: v.get("current", v["floor"]) for k, v in SCHEDULE.items() if not v.get("staged")}
+    state["pending"] = [k for k, v in SCHEDULE.items() if v.get("staged")]
+    return state
 
 
 def save_state(state):
@@ -190,15 +200,8 @@ def analyse_activities(activities, token):
 # TARGET ENGINE
 # ─────────────────────────────────────────────
 def compute_target_volume(targets):
-    """Total target volume from current targets (sum of all sessions)."""
-    return (
-        targets["mon_gym"] +
-        targets["tue_interval"] +
-        targets["wed_gym"] +
-        targets["fri_gym"] +
-        targets["fri_lunch"] +
-        targets["long_run"]
-    )
+    """Total target volume — every session currently in the plan."""
+    return sum(v for k, v in targets.items() if k in SCHEDULE)
 
 
 def long_run_ceiling(total_target):
@@ -206,41 +209,47 @@ def long_run_ceiling(total_target):
     return 180
 
 
-def adjust_targets(targets, actual_cardio_mins):
+def adjust_targets(targets, actual_cardio_mins, pending=()):
     """Apply the volume adjustment rules and return new targets.
 
-    Hit 80% of target → everything adjustable goes up 10% (clamped to ceilings).
-    No qualifying activity at all (no run/treadmill/football all week) →
-    everything adjustable drops 10% (clamped to floors). Otherwise targets hold.
+    Hit 80% of target →
+        if a staged session is still pending: admit the next one at 10% of the
+        weekly total (that week's whole allowance goes to the new run);
+        otherwise every adjustable session goes up 10% (clamped to ceilings).
+    No qualifying activity all week → adjustables drop 10% (clamped to floors).
+    Otherwise targets hold.
     """
-    total_target = compute_target_volume(targets)
+    total_target   = compute_target_volume(targets)
     threshold_high = round(total_target * 0.80)
+    pending        = list(pending)
+    new_targets    = dict(targets)
+    admitted       = None
+
+    def adjustable():
+        return [k for k in new_targets if not SCHEDULE[k]["fixed"]]
+
+    def clamp(key, val):
+        s = SCHEDULE[key]
+        ceiling = s["ceiling"] or long_run_ceiling(total_target)
+        return max(s["floor"], min(ceiling, round(val)))
 
     if actual_cardio_mins >= threshold_high:
-        factor    = 1.10
-        direction = "increase"
+        if pending:
+            admitted = pending.pop(0)
+            new_targets[admitted] = clamp(admitted, total_target * 0.10)
+            direction = "admit"
+        else:
+            for key in adjustable():
+                new_targets[key] = clamp(key, targets[key] * 1.10)
+            direction = "increase"
     elif actual_cardio_mins == 0:
-        factor    = 0.90
+        for key in adjustable():
+            new_targets[key] = clamp(key, targets[key] * 0.90)
         direction = "decrease"
     else:
-        factor    = 1.00
         direction = "maintain"
 
-    new_targets = dict(targets)
-
-    if factor != 1.00:
-        adjustable = ["tue_interval", "fri_lunch", "long_run"]
-        for key in adjustable:
-            s = SCHEDULE[key]
-            new_val = targets[key] * factor
-
-            # Clamp to floor/ceiling
-            floor   = s["floor"]
-            ceiling = s["ceiling"] or long_run_ceiling(total_target)
-            new_val = max(floor, min(ceiling, round(new_val)))
-            new_targets[key] = new_val
-
-    return new_targets, direction, threshold_high
+    return new_targets, direction, threshold_high, pending, admitted
 
 
 # ─────────────────────────────────────────────
@@ -278,6 +287,19 @@ def interval_recommendation(interval_target_mins, total_target_mins, actual_zone
 
 
 # ─────────────────────────────────────────────
+# FRIDAY TEMPO
+# ─────────────────────────────────────────────
+def tempo_recommendation(tempo_target_mins):
+    """Split the Friday session into warm-up / tempo block / cool-down.
+
+    Warm-up and cool-down take ~25% each, capped at 15 min; the block is the rest.
+    """
+    bookend = min(15, round(tempo_target_mins * 0.25))
+    block   = tempo_target_mins - 2 * bookend
+    return bookend, block
+
+
+# ─────────────────────────────────────────────
 # EMAIL
 # ─────────────────────────────────────────────
 def fmt(mins):
@@ -292,7 +314,8 @@ def fmt(mins):
 
 
 def build_email(stats, old_targets, new_targets, direction, threshold_high,
-                week_start, week_end, interval_session, interval_note, z45_target):
+                week_start, week_end, interval_session, interval_note, z45_target,
+                pending=(), admitted=None):
 
     total_target = compute_target_volume(old_targets)
     lr_ceiling   = long_run_ceiling(total_target)
@@ -326,6 +349,9 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
     if direction == "increase":
         badge_color = "#1D9E75"
         badge_text  = "↑ Volume increasing +10%"
+    elif direction == "admit":
+        badge_color = "#1D9E75"
+        badge_text  = f"↑ New session added: {SCHEDULE[admitted]['label']} ({fmt(new_targets[admitted])})"
     elif direction == "decrease":
         badge_color = "#D85A30"
         badge_text  = "↓ Volume decreasing −10% — no runs logged last week"
@@ -344,18 +370,38 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
         </tr>"""
 
     def changed(key):
-        return new_targets[key] != old_targets[key]
+        return key in old_targets and new_targets[key] != old_targets[key]
 
-    lr_note = f"ceiling {fmt(lr_ceiling)}"
+    target_rows = ""
+    for key, s in SCHEDULE.items():
+        if key not in new_targets:
+            continue
+        note = s.get("note", "")
+        if key == "long_run":
+            note = f"ceiling {fmt(lr_ceiling)}"
+        if key == admitted:
+            note = "new this week" + (f" · {note}" if note else "")
+        target_rows += target_row(s["label"], new_targets[key], note, key == admitted or changed(key))
+    for key in pending:
+        target_rows += f"""
+        <tr>
+          <td style="padding:8px 12px;font-size:14px;color:#bbb;">{SCHEDULE[key]['label']}<br>
+            <span style="font-size:12px;color:#bbb;">next up — added on the next qualifying week at 10% of the total</span></td>
+          <td style="padding:8px 12px;text-align:right;font-size:14px;color:#bbb;">—</td>
+        </tr>"""
 
-    target_rows = (
-        target_row("Monday — gym commute",        new_targets["mon_gym"]) +
-        target_row("Tuesday — football, or 4×4 if cancelled", new_targets["tue_interval"], changed=changed("tue_interval")) +
-        target_row("Wednesday — gym commute",      new_targets["wed_gym"]) +
-        target_row("Friday — gym commute",         new_targets["fri_gym"]) +
-        target_row("Friday — lunch run",           new_targets["fri_lunch"], changed=changed("fri_lunch")) +
-        target_row("Saturday/Sunday — long Zone 2",new_targets["long_run"], lr_note, changed("long_run"))
-    )
+    tempo_html = ""
+    if "fri_lunch" in new_targets:
+        bookend, block = tempo_recommendation(new_targets["fri_lunch"])
+        tempo_html = f"""
+    <!-- Friday tempo -->
+    <div style="padding:24px 32px;border-bottom:1px solid #f0f0f0;">
+      <p style="margin:0 0 12px;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.08em;">Friday lunch — tempo</p>
+      <p style="margin:0 0 8px;font-size:14px;color:#444;">Session length: <strong>{fmt(new_targets['fri_lunch'])}</strong></p>
+      <p style="margin:0 0 8px;font-size:14px;color:#333;">{bookend} min easy → {block} min comfortably hard at 167–172 bpm → {bookend} min easy</p>
+      <p style="margin:0;font-size:13px;color:#999;">Run it as a tempo on weeks the long run is Sunday. If the long run is Saturday, keep the whole session easy (under 140 bpm). Hold the heart rate, not a pace — the pace at that HR will drop as fitness returns.</p>
+    </div>
+"""
 
 
     html = f"""
@@ -453,6 +499,7 @@ def build_email(stats, old_targets, new_targets, direction, threshold_high,
       <p style="margin:0;font-size:14px;color:#333;">{interval_session}</p>
     </div>
 
+{tempo_html}
     <!-- Footer -->
     <div style="padding:20px 32px;background:#fafafa;">
       <p style="margin:0;font-size:12px;color:#bbb;text-align:center;">
@@ -493,10 +540,11 @@ def main():
     print(f"  Total cardio: {stats['total_cardio_mins']} mins across {len(activities)} activities")
 
     state       = load_state()
+    pending     = list(state.get("pending", []))
     old_targets = {k: state[k] for k in SCHEDULE if k in state}
-    # Seed any missing keys
+    # Seed any missing keys (staged sessions stay out until admitted)
     for k, v in SCHEDULE.items():
-        if k not in old_targets:
+        if k not in old_targets and not v.get("staged") and k not in pending:
             old_targets[k] = v.get("current", v["floor"])
 
     # REPORT_ONLY=1 → resend the email with current targets; no adjustment, no
@@ -506,8 +554,13 @@ def main():
         new_targets    = dict(old_targets)
         direction      = "maintain"
         threshold_high = round(compute_target_volume(old_targets) * 0.80)
+        admitted       = None
     else:
-        new_targets, direction, threshold_high = adjust_targets(old_targets, stats["total_cardio_mins"])
+        new_targets, direction, threshold_high, pending, admitted = adjust_targets(
+            old_targets, stats["total_cardio_mins"], pending
+        )
+        if admitted:
+            print(f"  Admitted {admitted} at {new_targets[admitted]} mins; still pending: {pending}")
 
     total_target   = compute_target_volume(new_targets)
     interval_sess, interval_note, z45_target = interval_recommendation(
@@ -516,14 +569,17 @@ def main():
 
     html = build_email(
         stats, old_targets, new_targets, direction, threshold_high,
-        week_start, week_end, interval_sess, interval_note, z45_target
+        week_start, week_end, interval_sess, interval_note, z45_target,
+        pending=pending, admitted=admitted
     )
 
     send_email(html, week_start, week_end)
     if report_only:
         print("Report-only mode: state not saved.")
     else:
-        save_state(new_targets)
+        combined = dict(new_targets)
+        combined["pending"] = pending
+        save_state(combined)
         print("Targets saved.")
 
 
